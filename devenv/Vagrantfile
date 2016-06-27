@@ -1,0 +1,144 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
+#
+
+
+$script = <<-SCRIPT
+mkdir -p /var/lib/vagrant_dev_install_flags
+function flag_is_set() {
+  if [ -e /var/lib/vagrant_dev_install_flags/$1 ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+function set_flag() {
+  touch /var/lib/vagrant_dev_install_flags/$1
+}
+
+function unset_flag() {
+  rm -f /var/lib/vagrant_dev_install_flags/$1
+}
+
+function unset_all_flags() {
+  rm -f /var/lib/vagrant_dev_install_flags/*
+}
+
+# Update before we go
+apt-get update
+
+# Install Java and other dependencies
+if ! flag_is_set CORE_DEPS; then
+  apt-get -y install openjdk-7-jdk maven wget build-essential git uuid-dev && \
+  set_flag CORE_DEPS
+fi
+
+# Install IPython and ZeroMQ
+IPYTHON_VERSION=3.2.1
+
+if ! flag_is_set IPYTHON; then
+  apt-get -f -y install && \
+  apt-get -y install python3-pip python-dev libzmq-dev build-essential && \
+  cd /src && \
+  pip3 install ipython[notebook]==${IPYTHON_VERSION} && \
+  ipython profile create && \
+  set_flag IPYTHON
+fi
+
+if [ -z `which docker` ]; then
+  sudo apt-get update -y
+  sudo apt-get -y install apt-transport-https linux-image-extra-`uname -r`
+  printf "deb https://get.docker.com/ubuntu docker main\n" > /etc/apt/sources.list.d/docker.list
+  sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 36A1D7869245C8950F966E92D8576A8BA88D21E9
+  sudo apt-get update -y
+  sudo apt-get install -y lxc-docker-1.4.1
+  sudo chown vagrant:vagrant /var/run/docker.sock
+fi
+
+# Installing R
+if ! flag_is_set R; then
+  sudo sh -c 'printf "deb http://cran.cnr.Berkeley.edu/bin/linux/ubuntu trusty/" >> /etc/apt/sources.list' && \
+  sudo apt-get update -y && \
+  sudo apt-get install r-base r-base-dev && \
+  sudo chmod 777 /usr/local/lib/R/site-library && \
+  set_flag R
+fi
+
+# Install scala and sbt (if not already installed)
+cd /tmp
+
+# If Scala is not installed, install it
+if ! flag_is_set SCALA; then
+  apt-get install -f -y && \
+  apt-get install -y libjansi-java && \
+  apt-get install -f -y && \
+  wget --progress=bar:force http://www.scala-lang.org/files/archive/scala-2.10.4.deb && \
+  dpkg -i scala-2.10.4.deb && \
+  rm scala-2.10.4.deb && \
+  set_flag SCALA
+fi
+
+# If sbt is not installed, install it
+if ! flag_is_set SBT; then
+  wget --progress=bar:force http://dl.bintray.com/sbt/debian/sbt-0.13.9.deb && \
+  dpkg -i sbt-0.13.9.deb && \
+  rm sbt-0.13.9.deb && \
+  set_flag SBT
+fi
+
+# Downloading Spark
+SPARK_VERSION=1.5.1
+if ! flag_is_set SPARK; then
+  cd /opt && \
+  wget http://apache.arvixe.com/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop2.3.tgz && \
+  tar xvzf spark-${SPARK_VERSION}-bin-hadoop2.3.tgz && \
+  ln -s spark-${SPARK_VERSION}-bin-hadoop2.3 spark && \
+  export SPARK_HOME=/opt/spark && \
+  set_flag SPARK
+fi
+
+chown -R vagrant.vagrant /home/vagrant/.ipython
+
+ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+ssh -T git@github.com
+
+cd /opt/workspace
+rm -rf recruitbot
+git clone git@github.com:ENV['RECUITBOT_FORK_USER']/recruitbot.git
+
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  # Have the script install docker
+  config.vm.provision :shell, :inline => $script
+
+  # Every Vagrant virtual environment requires a box to build off of.
+  config.vm.box = "ubuntu/trusty64"
+  config.vm.hostname = "recruit-bot"
+
+  # Mount the directory containing this file as /vagrant in the VM.
+  # Since this file is copied around we need to figure out where the docker files are
+  config.vm.synced_folder ".." , "/opt/workspace/recruitbot"
+
+  # Configure memory and cpus
+  config.vm.provider :virtualbox do |vb|
+    vb.customize ["modifyvm", :id, "--memory", "3072"]
+    vb.customize ["modifyvm", :id, "--cpus", "2"]
+    vb.name = "recruit-bot"
+
+  end
+end
