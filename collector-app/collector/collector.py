@@ -1,6 +1,7 @@
 import json
 import os
 
+import github
 from github import Github
 
 # First create a Github instance:
@@ -30,18 +31,21 @@ def main():
             user_dict['id'] = user.id
             user_dict['contributions']={}
             for repo in user.get_watched():
-                repo_total = 0
-                for _ in repo.get_commits():
-                    repo_total = repo_total + 1
-                if repo.get_stats_contributors() is not None:
-                    for contributor in repo.get_stats_contributors():
-                        if contributor is not None and contributor.author.id == user_dict['id']:
-                            user_dict['contributions'][repo.name]={}
-                            user_dict['contributions'][repo.name]['contributor_commits']=contributor.total
-                            user_dict['contributions'][repo.name]['repo_commits']=repo_total
-                            user_dict['contributions'][repo.name]['language']=repo.language
-                            user_dict['contributions'][repo.name]['stars']=repo.stargazers_count
-                            break
+                try:
+                    repo_total = 0
+                    for _ in repo.get_commits():
+                        repo_total = repo_total + 1
+                    if repo.get_stats_contributors() is not None:
+                        for contributor in repo.get_stats_contributors():
+                            if contributor is not None and contributor.author.id == user_dict['id']:
+                                user_dict['contributions'][repo.name]={}
+                                user_dict['contributions'][repo.name]['contributor_commits']=contributor.total
+                                user_dict['contributions'][repo.name]['repo_commits']=repo_total
+                                user_dict['contributions'][repo.name]['language']=repo.language
+                                user_dict['contributions'][repo.name]['stars']=repo.stargazers_count
+                                break
+                except github.GithubException.GithubException as e:
+                    print e
 
             f.write(json.dumps(user_dict)+"\n")
 
