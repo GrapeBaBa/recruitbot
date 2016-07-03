@@ -14,7 +14,7 @@ def main():
     :return:
     '''
     with open(os.path.join(os.path.expanduser("~"),'recruitbot_data.txt'),'w') as f:
-        for user in g.get_users()[0:10000]:
+        for user in g.search_users("type:user")[0:10000]:
             user_dict = {}
             user_dict['username'] = user.login
             user_dict['id'] = user.id
