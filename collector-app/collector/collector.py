@@ -43,8 +43,9 @@ def main():
                                 user_dict['contributions'][repo.name]['repo_commits']=repo_total
                                 user_dict['contributions'][repo.name]['language']=repo.language
                                 user_dict['contributions'][repo.name]['stars']=repo.stargazers_count
+                                print user_dict
                                 break
-                except github.GithubException.GithubException as e:
+                except github.GithubException as e:
                     print e
 
             f.write(json.dumps(user_dict)+"\n")
