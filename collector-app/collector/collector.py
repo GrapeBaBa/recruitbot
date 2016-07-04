@@ -6,7 +6,7 @@ from github import Github
 
 # First create a Github instance:
 
-g = Github("grapebaba", "heatonn1",per_page=1000)
+g = Github("grapebaba", "heatonn1", per_page=1000)
 
 
 def main():
@@ -14,8 +14,8 @@ def main():
     Use small data for this application
     :return:
     '''
-    with open(os.path.join(os.path.expanduser("~"),'recruitbot_data.txt'),'w') as f:
-        for user in g.search_users("type:user")[0:10000]:
+    with open(os.path.join(os.path.expanduser("~"), 'recruitbot_data.txt'), 'w') as f:
+        for user in g.search_users("type:user")[0:1]:
             user_dict = {}
             user_dict['username'] = user.login
             user_dict['id'] = user.id
@@ -29,7 +29,7 @@ def main():
             user_dict['blog_url'] = user.blog
             user_dict['email'] = user.email
             user_dict['id'] = user.id
-            user_dict['contributions']={}
+            user_dict['contributions'] = []
             for repo in user.get_watched():
                 try:
                     repo_total = 0
@@ -38,17 +38,19 @@ def main():
                     if repo.get_stats_contributors() is not None:
                         for contributor in repo.get_stats_contributors():
                             if contributor is not None and contributor.author.id == user_dict['id']:
-                                user_dict['contributions'][repo.name]={}
-                                user_dict['contributions'][repo.name]['contributor_commits']=contributor.total
-                                user_dict['contributions'][repo.name]['repo_commits']=repo_total
-                                user_dict['contributions'][repo.name]['language']=repo.language
-                                user_dict['contributions'][repo.name]['stars']=repo.stargazers_count
-                                print user_dict
+                                contribute_repo = {}
+                                contribute_repo['repo_name'] = repo.name
+                                contribute_repo['contributor_commits'] = contributor.total
+                                contribute_repo['repo_commits'] = repo_total
+                                contribute_repo['language'] = repo.language
+                                contribute_repo['stars'] = repo.stargazers_count
+                                user_dict['contributions'].append(contribute_repo)
                                 break
                 except github.GithubException as e:
                     print e
 
-            f.write(json.dumps(user_dict)+"\n")
+            f.write(json.dumps(user_dict) + "\n")
+
 
 if __name__ == '__main__':
     main()
