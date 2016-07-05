@@ -6,7 +6,7 @@ from github import Github
 
 # First create a Github instance:
 
-g = Github("grapebaba", "heatonn1", per_page=1000)
+g = Github("grapebaba", "heatonn1", per_page=1000, timeout=120)
 
 
 def main():
@@ -44,7 +44,7 @@ def main():
                                 contribute_repo['repo_commits'] = repo_total
                                 contribute_repo['language'] = repo.language
                                 contribute_repo['stars'] = repo.stargazers_count
-                                user_dict['contributions'].append(contribute_repo)
+                                user_dict['contributions'].extend(contribute_repo)
                                 break
                 except github.GithubException as e:
                     print e
